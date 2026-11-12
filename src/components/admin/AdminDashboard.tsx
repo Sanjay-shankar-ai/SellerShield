@@ -412,7 +412,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   // Export CSV
   const handleExportCSV = () => {
     const token = authService.getToken();
-    window.open(`http://127.0.0.1:8000/api/admin/audit-logs/export-csv?token=${token}`, '_blank');
+    const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
+      ? import.meta.env.VITE_API_BASE_URL
+      : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+    window.open(`${apiBase}/api/admin/audit-logs/export-csv?token=${token}`, '_blank');
   };
 
   const getStatusBadge = (status: string) => {

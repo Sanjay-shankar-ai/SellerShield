@@ -14,7 +14,7 @@ else:
     load_dotenv()
 
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Response, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -1265,6 +1265,23 @@ def get_latest_support_call(
             "completed_at": call.completed_at.isoformat() if call.completed_at else None
         }
     }
+
+
+# ============================================================================
+# PRODUCTION SPA STATIC SERVING (Google Cloud Run / Single Container)
+# ============================================================================
+dist_dir = Path(__file__).resolve().parent.parent / "dist"
+if dist_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="dist_assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("static/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = dist_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(dist_dir / "index.html")
 
 
 if __name__ == "__main__":

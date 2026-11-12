@@ -42,7 +42,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setErrorMsg('');
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/auth/login', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
+        ? import.meta.env.VITE_API_BASE_URL
+        : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+      const res = await fetch(`${apiBase}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })

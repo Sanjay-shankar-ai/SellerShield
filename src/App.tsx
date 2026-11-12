@@ -30,7 +30,10 @@ function AppContent() {
     setIsLoadingProducts(true);
     setProductsError(false);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/products');
+      const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
+        ? import.meta.env.VITE_API_BASE_URL
+        : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+      const res = await fetch(`${apiBase}/api/products`);
       if (res.ok) {
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : []);

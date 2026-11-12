@@ -68,7 +68,10 @@ export const authService = {
       headers.set('Content-Type', 'application/json');
     }
 
-    const fullUrl = url.startsWith('http') ? url : `http://127.0.0.1:8000${url}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
+      ? import.meta.env.VITE_API_BASE_URL
+      : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+    const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`;
     const res = await fetch(fullUrl, { ...options, headers });
 
     if (res.status === 401) {
