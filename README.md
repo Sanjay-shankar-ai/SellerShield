@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SellerShield AI 🛡️
 
 > **Autonomous E-Commerce Store & AI Concierge Operations Center**  
@@ -188,3 +189,6 @@ SellerShield/
 
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
+=======
+# SellerShield
+>>>>>>> 5c4259b72b4f010f078eae2e6f83aba283cfeffd
