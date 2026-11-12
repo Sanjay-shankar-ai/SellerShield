@@ -72,6 +72,7 @@ app = FastAPI(
 
 # Allowed production & development origins for CORS
 ALLOWED_ORIGINS = [
+    "https://sellershield-beta.vercel.app",
     "https://seller-shield.vercel.app",
     "https://seller-shield-2s7p.vercel.app",
     "https://seller-shield-2s7p-m25z0ideh-sanjays-projects-66767f45.vercel.app",
@@ -81,11 +82,11 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000"
 ]
 
-# Enable CORS for frontend (scoped preview regex without wildcard origin)
+# Enable CORS for frontend (allows all Vercel deployments and localhost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"^https://seller-shield.*\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https://.*\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
