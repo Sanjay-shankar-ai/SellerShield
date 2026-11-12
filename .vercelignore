@@ -1,0 +1,26 @@
+# Dependencies & system files
+node_modules
+mingit
+legacy_backup
+.git
+__pycache__
+*.pyc
+*.pyo
+
+# Databases and large SQLite checkpoints
+sellershield_checkpoints.db
+sellershield_checkpoints.db-shm
+sellershield_checkpoints.db-wal
+*.db-shm
+*.db-wal
+
+# Presentation decks and tests
+*.pptx
+~$*
+generate_presentation.py
+test_*.py
+Dockerfile
+.dockerignore
+
+# Uploads directory contents
+static/uploads/*
