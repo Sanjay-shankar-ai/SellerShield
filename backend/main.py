@@ -54,21 +54,41 @@ app = FastAPI(
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*|http://127\.0\.0\.1:.*",
+    allow_origins=[
+        "https://seller-shield-2s7p.vercel.app",
+        "https://seller-shield.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 2A: Mount static uploads directory for serving customer evidence photos
-uploads_dir = Path(__file__).resolve().parent.parent / "static" / "uploads"
+if os.environ.get("VERCEL"):
+    uploads_dir = Path("/tmp/static/uploads")
+else:
+    uploads_dir = Path(__file__).resolve().parent.parent / "static" / "uploads"
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
-# Start background tracking scheduler on server startup
+# Start background tracking scheduler on server startup (local & container mode)
 @app.on_event("startup")
 async def startup_event():
-    asyncio.create_task(tracking_scheduler_loop())
+    if not os.environ.get("VERCEL"):
+        asyncio.create_task(tracking_scheduler_loop())
+
+@app.get("/")
+def root():
+    return {
+        "service": "SellerShield AI Backend API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
 
 @app.get("/api/health")
 def health_check():
