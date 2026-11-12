@@ -14,10 +14,13 @@ sellershield_checkpoints.db-wal
 *.db-shm
 *.db-wal
 
-# Presentation decks and tests
+# Presentation decks, diagrams and tests
 *.pptx
 ~$*
 generate_presentation.py
+generate_diagram_image.py
+langgraph_architecture.png
+langgraph_architecture.svg
 test_*.py
 Dockerfile
 .dockerignore
