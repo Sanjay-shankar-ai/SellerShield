@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "sellershield_secret_jwt_key_2026_super_secure_production_token")
+SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or "sellershield_secret_jwt_key_2026_super_secure_production_token"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
@@ -48,13 +48,18 @@ def get_current_user(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_id: Optional[str] = payload.get("sub")
+        user_email: Optional[str] = payload.get("email")
+        if user_id is None and user_email is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = None
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+    if user is None and user_email:
+        user = db.query(User).filter(User.email == user_email).first()
     if user is None:
         raise credentials_exception
     return user

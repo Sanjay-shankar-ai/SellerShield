@@ -36,8 +36,9 @@ def seed_database():
     ]
     db.add_all(settings)
 
-    # 2. Users (1 Admin, 2 Customers, 1 Risky Customer)
+    # 2. Users (1 Admin, 2 Customers, 1 Risky Customer) with fixed IDs for serverless consistency
     admin = User(
+        id="user-admin-001",
         email="admin@sellershield.com",
         hashed_password=get_password_hash("admin123"),
         full_name="Sarah Connor (Store Admin)",
@@ -50,6 +51,7 @@ def seed_database():
     )
 
     cust1 = User(
+        id="user-customer-rahul-001",
         email="rahul@gmail.com",
         hashed_password=get_password_hash("rahul123"),
         full_name="Rahul Sharma",
@@ -62,6 +64,7 @@ def seed_database():
     )
 
     cust2 = User(
+        id="user-customer-ananya-002",
         email="ananya@gmail.com",
         hashed_password=get_password_hash("ananya123"),
         full_name="Ananya Iyer",
@@ -74,6 +77,7 @@ def seed_database():
     )
 
     cust3 = User(
+        id="user-customer-vikram-003",
         email="vikram@gmail.com",
         hashed_password=get_password_hash("vikram123"),
         full_name="Vikram Verma",

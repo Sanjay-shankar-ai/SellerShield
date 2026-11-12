@@ -203,7 +203,7 @@ def login_for_access_token(req: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": user.id, "role": user.role})
+    access_token = create_access_token(data={"sub": user.id, "email": user.email, "role": user.role})
 
     # Log login event
     log_audit_event(
