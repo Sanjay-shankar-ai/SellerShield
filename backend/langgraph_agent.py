@@ -45,7 +45,11 @@ _http_client = httpx.Client(
 )
 
 # SQLite Checkpointer connection (thread-safe for SQLite)
-CHECKPOINT_DB_PATH = str(Path(__file__).parent.parent / "sellershield_checkpoints.db")
+import tempfile
+if os.environ.get("VERCEL"):
+    CHECKPOINT_DB_PATH = os.path.join(tempfile.gettempdir(), "sellershield_checkpoints.db")
+else:
+    CHECKPOINT_DB_PATH = str(Path(__file__).parent.parent / "sellershield_checkpoints.db")
 _checkpoint_conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
 checkpointer = SqliteSaver(_checkpoint_conn)
 checkpointer.setup()

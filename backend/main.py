@@ -69,7 +69,8 @@ app.add_middleware(
 
 # 2A: Mount static uploads directory for serving customer evidence photos
 if os.environ.get("VERCEL"):
-    uploads_dir = Path("/tmp/static/uploads")
+    import tempfile
+    uploads_dir = Path(tempfile.gettempdir()) / "static" / "uploads"
 else:
     uploads_dir = Path(__file__).resolve().parent.parent / "static" / "uploads"
 uploads_dir.mkdir(parents=True, exist_ok=True)
