@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { authService } from '../../api/authService';
+import { getApiBaseUrl } from '../../api/config';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -42,9 +43,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setErrorMsg('');
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
-        ? import.meta.env.VITE_API_BASE_URL
-        : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+      const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,7 +59,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       authService.setSession(data.access_token, data.user);
       onLoginSuccess(data.user);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login failed. Please verify credentials.');
+      if (err.name === 'TypeError' && err.message?.toLowerCase().includes('fetch')) {
+        setErrorMsg('Unable to connect to backend server. Please verify the backend service is deployed and running.');
+      } else {
+        setErrorMsg(err.message || 'Login failed. Please verify credentials.');
+      }
     } finally {
       setIsLoading(false);
     }

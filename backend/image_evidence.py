@@ -28,7 +28,11 @@ def call_gemini(*args, **kwargs):
     return _cg(*args, **kwargs)
 
 # Upload storage directory
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "static" / "uploads" / "orders"
+import tempfile
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path(tempfile.gettempdir()) / "static" / "uploads" / "orders"
+else:
+    UPLOAD_DIR = Path(__file__).resolve().parent.parent / "static" / "uploads" / "orders"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Strict Gemini Vision Schema (2B)

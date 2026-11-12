@@ -47,6 +47,7 @@ import {
   TrackingEventItem
 } from '../../types';
 import { authService } from '../../api/authService';
+import { getApiBaseUrl } from '../../api/config';
 import { useToast } from '../common/ToastContext';
 
 type AdminTab = 'overview' | 'orders' | 'escalations' | 'audit' | 'products' | 'settings';
@@ -412,9 +413,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   // Export CSV
   const handleExportCSV = () => {
     const token = authService.getToken();
-    const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
-      ? import.meta.env.VITE_API_BASE_URL
-      : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+    const apiBase = getApiBaseUrl();
     window.open(`${apiBase}/api/admin/audit-logs/export-csv?token=${token}`, '_blank');
   };
 

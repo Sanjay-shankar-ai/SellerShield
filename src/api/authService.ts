@@ -1,4 +1,5 @@
 import { UserProfile } from '../types';
+import { getApiBaseUrl } from './config';
 
 const TOKEN_KEY = 'sellershield_jwt_token';
 const USER_KEY = 'sellershield_user_profile';
@@ -68,16 +69,18 @@ export const authService = {
       headers.set('Content-Type', 'application/json');
     }
 
-    const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
-      ? import.meta.env.VITE_API_BASE_URL
-      : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+    const apiBase = getApiBaseUrl();
     const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`;
-    const res = await fetch(fullUrl, { ...options, headers });
-
-    if (res.status === 401) {
-      this.clearSession();
-      window.dispatchEvent(new Event('auth_unauthorized'));
+    try {
+      const res = await fetch(fullUrl, { ...options, headers });
+      if (res.status === 401) {
+        this.clearSession();
+        window.dispatchEvent(new Event('auth_unauthorized'));
+      }
+      return res;
+    } catch (err: any) {
+      console.error(`[SellerShield API Error] Request to ${fullUrl} failed:`, err);
+      throw err;
     }
-    return res;
   }
 };

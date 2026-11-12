@@ -12,6 +12,7 @@ import { ToastProvider, useToast } from './components/common/ToastContext';
 import { ThemeProvider } from './theme/ThemeContext';
 import { Product, CartItem, UserProfile, OrderRecord } from './types';
 import { authService } from './api/authService';
+import { getApiBaseUrl } from './api/config';
 
 function AppContent() {
   const toast = useToast();
@@ -30,9 +31,7 @@ function AppContent() {
     setIsLoadingProducts(true);
     setProductsError(false);
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL !== undefined
-        ? import.meta.env.VITE_API_BASE_URL
-        : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+      const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/api/products`);
       if (res.ok) {
         const data = await res.json();

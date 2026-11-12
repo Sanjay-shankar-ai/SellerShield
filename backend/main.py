@@ -1,8 +1,27 @@
 import os
+import sys
+import types
 import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+# Self-healing package bootstrap: Ensures relative imports work whether main.py is run
+# as a top-level module (e.g. Vercel Root Directory = 'backend') or imported as 'backend.main'
+if __package__ is None or __package__ == "":
+    _current_dir = Path(__file__).resolve().parent
+    if _current_dir.name == "backend":
+        if str(_current_dir.parent) not in sys.path:
+            sys.path.insert(0, str(_current_dir.parent))
+        __package__ = "backend"
+    else:
+        if str(_current_dir) not in sys.path:
+            sys.path.insert(0, str(_current_dir))
+        _pkg = types.ModuleType("backend")
+        _pkg.__path__ = [str(_current_dir)]
+        _pkg.__file__ = os.path.abspath(__file__)
+        sys.modules["backend"] = _pkg
+        __package__ = "backend"
 
 from dotenv import load_dotenv
 
@@ -51,19 +70,24 @@ app = FastAPI(
     version="3.0.0"
 )
 
-# Enable CORS for frontend
+# Allowed production & development origins for CORS
+ALLOWED_ORIGINS = [
+    "https://seller-shield.vercel.app",
+    "https://seller-shield-2s7p.vercel.app",
+    "https://seller-shield-2s7p-m25z0ideh-sanjays-projects-66767f45.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
+
+# Enable CORS for frontend (scoped preview regex without wildcard origin)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*|http://127\.0\.0\.1:.*",
-    allow_origins=[
-        "https://seller-shield-2s7p.vercel.app",
-        "https://seller-shield.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "*"
-    ],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^https://seller-shield.*\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
