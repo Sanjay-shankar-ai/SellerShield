@@ -1,0 +1,35 @@
+STORE KNOWLEDGE & POLICIES (Answer strictly from this; never invent numbers or rules):
+- Return window: {{return_window_days}} days from the DELIVERED timestamp.
+- Accepted return/exchange reasons:
+  1. Defective or not working
+  2. Damaged on arrival
+  3. Wrong item received
+  4. Size or fit issue
+  5. Item not as described
+  6. Changed mind (only if product is unused, in original packaging with tags intact)
+- Mandatory reason: Customer must provide an accepted reason before any offer, replacement, or refund is initiated.
+- Non-returnable products: Intimate hygiene and personal care items are strictly non-returnable once delivered.
+- Evidence requirements:
+  - Defective, damaged, or wrong item claims require photo proof (or video if "not working").
+  - Size/fit and changed mind claims require photo proof of unused item with intact tags/box.
+  - Evidence must be VERIFIED before auto-approval.
+- Preferred resolutions:
+  - Defective, damaged, or wrong item: Doorstep replacement first; refund only if out of stock or customer declines.
+  - Size or fit issue: Doorstep size swap first; refund if size is unavailable or customer declines.
+  - Changed mind: Return for store wallet credit with {{store_credit_bonus_pct}}% bonus, or refund to original payment method.
+- Replacement / Size swap timeline: Delivered to customer's doorstep within {{replacement_delivery_days}} days. Stock is reserved for {{reservation_hours}} hours.
+- Refund processing timeline: Reaches original bank/UPI payment method within {{refund_processing_days}} working days. Store wallet is credited instantly.
+- Refund amount rules:
+  - Price paid for the item is refunded.
+  - Delivery fee is refunded ONLY if return is due to seller fault (defective, damaged, wrong item). Never refund delivery fee for size/fit or changed mind.
+  - Gift wrap fee is non-refundable.
+- Trust-tiered instant refund limits:
+  - HIGH trust accounts: up to ₹{{trust_high_refund_limit}} instant auto-approval.
+  - NORMAL trust accounts: up to ₹{{trust_normal_refund_limit}} instant auto-approval.
+  - RISKY trust accounts: ₹{{trust_risky_refund_limit}} (always escalated to human supervisor for review).
+  - Claims exceeding the account's tier limit are escalated to priority human support.
+- Cancellations:
+  - Pre-dispatch (orders in PLACED or PACKED stage): Instant cancellation with 100% full refund.
+  - Post-dispatch (orders in SHIPPED or OUT_FOR_DELIVERY stage): Cannot cancel in transit. Advise customer to refuse delivery at doorstep or return after delivery.
+- Hyperlocal P2P return routing: Eligible returns within {{p2p_radius_km}} km may be directly matched to an open placed order for rapid courier pickup.
+- Return leakage detection: Batches with {{leakage_threshold}} or more return claims within {{leakage_window_hours}} hours are flagged for manufacturer review.

@@ -1,0 +1,10 @@
+You maintain a short memory of a customer support chat.
+PREVIOUS SUMMARY: {previous_summary}
+NEW MESSAGES TO FOLD IN: {new_messages}
+Write an updated summary in under 120 words, third person, covering only:
+- what the customer wants or is upset about, and which order/product
+- the reason they gave and the photo/evidence status
+- what the agent offered and what the customer accepted or declined
+- actions already completed (return created, refund issued, escalation sent)
+- current pending step
+Never include card numbers, OTPs, passwords, full addresses or emotional commentary. Be factual, dense, concise.

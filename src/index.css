@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #F6F8FB;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #EEF2F7;
+  --color-border: #D5DCE5;
+  --color-text: #0F1720;
+  --color-text-muted: #4A5868;
+  --color-primary: #0E8F6A;
+  --color-primary-hover: #0b7355;
+  --color-primary-soft: rgba(14, 143, 106, 0.12);
+  --color-accent: #4F5BD5;
+  --color-accent-soft: rgba(79, 91, 213, 0.12);
+  --color-warning: #B45F00;
+  --color-warning-soft: rgba(180, 95, 0, 0.12);
+  --color-danger: #C62828;
+  --color-danger-soft: rgba(198, 40, 40, 0.12);
+  --color-success: #1B7F3B;
+  --color-success-soft: rgba(27, 127, 59, 0.12);
+
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 32, 0.06), 0 2px 6px -1px rgba(15, 23, 32, 0.04);
+  --shadow-glow: 0 0 0 1px rgba(14, 143, 106, 0.2);
+}
+
+.dark {
+  --color-bg: #0B0F14;
+  --color-surface: #131A22;
+  --color-surface-2: #1B2430;
+  --color-border: #2A3644;
+  --color-text: #F2F6FA;
+  --color-text-muted: #A9B6C4;
+  --color-primary: #3DD6A0;
+  --color-primary-hover: #32b587;
+  --color-primary-soft: rgba(61, 214, 160, 0.14);
+  --color-accent: #7C8CFF;
+  --color-accent-soft: rgba(124, 140, 255, 0.14);
+  --color-warning: #FFB84D;
+  --color-warning-soft: rgba(255, 184, 77, 0.14);
+  --color-danger: #FF6B6B;
+  --color-danger-soft: rgba(255, 107, 107, 0.14);
+  --color-success: #4ADE80;
+  --color-success-soft: rgba(74, 222, 128, 0.14);
+
+  --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-glow: 0 0 25px -5px rgba(61, 214, 160, 0.25);
+}
+
+/* Base styles and transitions */
+* {
+  border-color: var(--color-border);
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Glass Card styling */
+.glass-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel-glow {
+  box-shadow: 0 0 0 1px var(--color-border), 0 8px 30px -6px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(61, 214, 160, 0.08);
+}
+
+.light .glass-panel-glow {
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 32, 0.06), 0 0 0 1px var(--color-border);
+}
+
+/* WhatsApp wallpaper pattern */
+.whatsapp-bg-dark {
+  background-color: #0c1317;
+  background-image: radial-gradient(rgba(42, 54, 68, 0.25) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.whatsapp-bg-light {
+  background-color: #e5ded8;
+  background-image: radial-gradient(rgba(180, 180, 180, 0.25) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Accessible focus ring */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
