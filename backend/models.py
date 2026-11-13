@@ -31,11 +31,13 @@ class User(Base):
     longitude = Column(Float, nullable=True)
     trust_score = Column(Float, default=75.0, nullable=False)
     trust_tier = Column(String(20), default="NORMAL", nullable=False)  # 'HIGH', 'NORMAL', 'RISKY'
+    store_name = Column(String(120), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     orders = relationship("Order", back_populates="customer", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="customer", cascade="all, delete-orphan")
     customer_memory = relationship("CustomerMemory", back_populates="customer", uselist=False, cascade="all, delete-orphan")
+    subscription = relationship("Subscription", back_populates="admin", uselist=False, cascade="all, delete-orphan")
 
 class Product(Base):
     __tablename__ = "products"
@@ -331,6 +333,53 @@ class SupportCall(Base):
 
     customer = relationship("User")
     order = relationship("Order")
+
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id = Column(String(50), primary_key=True)  # 'starter', 'growth', 'pro'
+    name = Column(String(100), nullable=False)
+    price_monthly = Column(Float, default=0.0, nullable=False)
+    price_yearly = Column(Float, default=0.0, nullable=False)
+    chat_limit = Column(Integer, default=50, nullable=False)  # -1 for unlimited
+    features = Column(Text, nullable=False)  # JSON string
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    admin_id = Column(String(36), ForeignKey("users.id"), index=True, nullable=False)
+    plan_id = Column(String(50), ForeignKey("plans.id"), index=True, nullable=False)
+    status = Column(String(30), default="active", nullable=False)  # 'trial', 'active', 'past_due', 'cancelled', 'expired'
+    billing_cycle = Column(String(20), default="monthly", nullable=False)  # 'monthly', 'yearly'
+    started_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    renew_at = Column(DateTime, nullable=True)
+    trial_ends_at = Column(DateTime, nullable=True)
+    chats_used = Column(Integer, default=0, nullable=False)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
+    downgrade_plan_id = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    admin = relationship("User", back_populates="subscription")
+    plan = relationship("Plan")
+    invoices = relationship("Invoice", back_populates="subscription", cascade="all, delete-orphan", order_by="Invoice.issued_at.desc()")
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    subscription_id = Column(String(36), ForeignKey("subscriptions.id"), index=True, nullable=False)
+    amount = Column(Float, nullable=False)
+    status = Column(String(30), default="PAID", nullable=False)  # 'PAID', 'FAILED', 'PENDING'
+    issued_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    invoice_no = Column(String(60), unique=True, index=True, nullable=False)
+    payment_method = Column(String(50), default="TEST_CARD", nullable=False)
+
+    subscription = relationship("Subscription", back_populates="invoices")
+
 
 
 

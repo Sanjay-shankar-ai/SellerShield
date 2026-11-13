@@ -2,14 +2,103 @@ import datetime
 import json
 from sqlalchemy.orm import Session
 from .database import SessionLocal, engine, Base
-from .models import User, Product, Order, OrderItem, TrackingEvent, Setting, AuditLog
+from .models import User, Product, Order, OrderItem, TrackingEvent, Setting, AuditLog, Plan, Subscription, Invoice
 from .auth import get_password_hash
+
+def seed_plans_and_subscriptions(db: Session):
+    """Seed or update subscription plans and default admin subscription."""
+    if db.query(Plan).count() == 0:
+        starter = Plan(
+            id="starter",
+            name="Starter",
+            price_monthly=0.0,
+            price_yearly=0.0,
+            chat_limit=50,
+            features=json.dumps({
+                "keys": ["order_tracking", "basic_audit"],
+                "display": [
+                    "50 AI chats a month",
+                    "Order tracking",
+                    "Basic audit log"
+                ]
+            }),
+            is_active=True
+        )
+        growth = Plan(
+            id="growth",
+            name="Growth",
+            price_monthly=999.0,
+            price_yearly=9990.0,
+            chat_limit=1000,
+            features=json.dumps({
+                "keys": ["order_tracking", "basic_audit", "returns_refunds", "escalation_queue", "csv_export"],
+                "display": [
+                    "1,000 AI chats a month",
+                    "Returns/refunds/exchanges",
+                    "Escalation queue",
+                    "CSV export"
+                ]
+            }),
+            is_active=True
+        )
+        pro = Plan(
+            id="pro",
+            name="Pro",
+            price_monthly=2999.0,
+            price_yearly=29990.0,
+            chat_limit=-1,
+            features=json.dumps({
+                "keys": [
+                    "order_tracking",
+                    "basic_audit",
+                    "returns_refunds",
+                    "escalation_queue",
+                    "csv_export",
+                    "image_defect_analysis",
+                    "voice_assistant",
+                    "leakage_salvage",
+                    "priority_support"
+                ],
+                "display": [
+                    "Unlimited AI chats",
+                    "Image defect analysis",
+                    "Voice assistant",
+                    "Leakage detector and salvage",
+                    "Trust tiers and priority support"
+                ]
+            }),
+            is_active=True
+        )
+        db.add_all([starter, growth, pro])
+        db.commit()
+
+    admin_user = db.query(User).filter(User.role == "ADMIN").first()
+    if admin_user:
+        existing_sub = db.query(Subscription).filter(Subscription.admin_id == admin_user.id).first()
+        if not existing_sub:
+            now = datetime.datetime.utcnow()
+            trial_sub = Subscription(
+                admin_id=admin_user.id,
+                plan_id="pro",
+                status="trial",
+                billing_cycle="monthly",
+                started_at=now,
+                renew_at=now + datetime.timedelta(days=14),
+                trial_ends_at=now + datetime.timedelta(days=14),
+                chats_used=0,
+                cancel_at_period_end=False
+            )
+            db.add(trial_sub)
+            db.commit()
 
 def seed_database():
     Base.metadata.create_all(bind=engine)
     db: Session = SessionLocal()
 
-    # If already seeded, skip
+    # Always ensure plans & admin subscription exist
+    seed_plans_and_subscriptions(db)
+
+    # If already seeded other tables, skip
     if db.query(User).count() > 0:
         db.close()
         return

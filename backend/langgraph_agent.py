@@ -2426,6 +2426,17 @@ def node_collect_evidence(state: SellerShieldAgentState) -> Dict[str, Any]:
 
     db: Session = SessionLocal()
     try:
+        from .subscription import has_feature
+        admin_user = db.query(User).filter(User.role == "ADMIN").first()
+        if not has_feature(admin_user, "image_defect_analysis", db):
+            return {
+                "evidence_status": "PENDING",
+                "escalate": True,
+                "escalation_reason": "Automated image defect analysis requires Pro plan. Photos forwarded for human review.",
+                "reply": "I have safely received your photo! Our automated visual defect analysis is a Pro feature, so I have forwarded your claim directly to our priority human team to review and resolve for you.",
+                "step": "escalate"
+            }
+
         order = db.query(Order).filter(Order.id == state.get("order_id")).first()
         prod_title = order.items[0].product_title if order and order.items else "item"
 

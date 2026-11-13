@@ -44,11 +44,16 @@ from .database import engine, Base, get_db
 from .models import (
     User, Product, Order, OrderItem, TrackingEvent,
     Conversation, Message, Escalation, AuditLog, Setting, CustomerMemory,
-    PromoCode, WalletTransaction, SupportCall
+    PromoCode, WalletTransaction, SupportCall, Plan, Subscription, Invoice
 )
 from .auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, require_admin, require_customer
+)
+from .subscription import (
+    has_feature, record_chat_turn, check_rate_limit,
+    get_or_create_admin_subscription, format_subscription_response,
+    check_and_expire_subscription
 )
 from .order_api import get_customer_orders, get_order_by_id, track_order, is_order_active
 from .policy_engine import check_policy, PolicyVerdict, get_setting_value
@@ -104,7 +109,7 @@ app.mount("/static/uploads", StaticFiles(directory=str(uploads_dir)), name="uplo
 # Start background tracking scheduler on server startup (local & container mode)
 @app.on_event("startup")
 async def startup_event():
-    if not os.environ.get("VERCEL"):
+    if not os.environ.get("VERCEL") and not os.environ.get("TESTING"):
         asyncio.create_task(tracking_scheduler_loop())
 
 @app.get("/")
@@ -140,12 +145,29 @@ class UserResponse(BaseModel):
     full_name: str
     phone: Optional[str]
     role: str
+    store_name: Optional[str] = None
     wallet_balance: Optional[float] = 0.0
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class SignupRequest(BaseModel):
+    store_name: str
+    email: str
+    password: str
+    full_name: Optional[str] = None
+
+class SubscriptionCheckoutRequest(BaseModel):
+    plan_id: str
+    billing_cycle: Optional[str] = "monthly"
+    is_trial: Optional[bool] = False
+    test_card: Optional[Dict[str, Any]] = None
+
+class PlanChangeRequest(BaseModel):
+    plan_id: str
+    billing_cycle: Optional[str] = "monthly"
 
 class CartItemPayload(BaseModel):
     productId: str
@@ -196,6 +218,9 @@ class AdminShipmentUpdateRequest(BaseModel):
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login_for_access_token(req: LoginRequest, db: Session = Depends(get_db)):
+    # Rate limit login attempts
+    check_rate_limit(req.email.lower().strip(), "login", max_requests=10, window_seconds=60)
+
     user = db.query(User).filter(User.email == req.email.lower().strip()).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(
@@ -226,7 +251,67 @@ def login_for_access_token(req: LoginRequest, db: Session = Depends(get_db)):
             full_name=user.full_name,
             phone=user.phone,
             role=user.role,
+            store_name=user.store_name,
             wallet_balance=user.wallet_balance or 0.0
+        )
+    )
+
+@app.post("/api/auth/signup", response_model=TokenResponse)
+def signup_admin(req: SignupRequest, db: Session = Depends(get_db)):
+    # Rate limit signup requests
+    check_rate_limit(req.email.lower().strip(), "signup", max_requests=8, window_seconds=60)
+
+    clean_email = req.email.lower().strip()
+    if not clean_email or "@" not in clean_email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if not req.store_name or not req.store_name.strip():
+        raise HTTPException(status_code=400, detail="Store name is required")
+
+    existing = db.query(User).filter(User.email == clean_email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    new_admin = User(
+        email=clean_email,
+        hashed_password=get_password_hash(req.password),
+        full_name=req.full_name.strip() if (req.full_name and req.full_name.strip()) else req.store_name.strip(),
+        store_name=req.store_name.strip(),
+        role="ADMIN",
+        trust_score=100.0,
+        trust_tier="HIGH"
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+
+    # Automatically initialize default Starter subscription
+    get_or_create_admin_subscription(new_admin, db)
+
+    access_token = create_access_token(data={"sub": new_admin.id, "email": new_admin.email, "role": new_admin.role})
+
+    log_audit_event(
+        db=db,
+        actor=f"ADMIN:{new_admin.full_name}",
+        tool="auth.signup",
+        input_payload={"email": new_admin.email, "store_name": new_admin.store_name},
+        output_payload={"status": "REGISTERED"},
+        verdict="AUTO_APPROVE",
+        customer_id=new_admin.id
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse(
+            id=new_admin.id,
+            email=new_admin.email,
+            full_name=new_admin.full_name,
+            phone=new_admin.phone,
+            role=new_admin.role,
+            store_name=new_admin.store_name,
+            wallet_balance=0.0
         )
     )
 
@@ -238,8 +323,257 @@ def get_me(current_user: User = Depends(get_current_user)):
         full_name=current_user.full_name,
         phone=current_user.phone,
         role=current_user.role,
+        store_name=current_user.store_name,
         wallet_balance=current_user.wallet_balance or 0.0
     )
+
+# ============================================================================
+# 1B. SUBSCRIPTION & PLANS ENDPOINTS (GET /api/plans is public, others ADMIN)
+# ============================================================================
+
+@app.get("/api/plans")
+def get_plans(db: Session = Depends(get_db)):
+    """
+    Public endpoint: retrieves active subscription plans with monthly/yearly pricing and feature lists.
+    """
+    import json as _json
+    plans = db.query(Plan).filter(Plan.is_active == True).all()
+    result = []
+    for p in plans:
+        features_data = {}
+        try:
+            features_data = _json.loads(p.features)
+        except Exception:
+            features_data = {"keys": [], "display": []}
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "price_monthly": p.price_monthly,
+            "price_yearly": p.price_yearly,
+            "chat_limit": p.chat_limit,
+            "features": features_data.get("display", []),
+            "feature_keys": features_data.get("keys", [])
+        })
+    return result
+
+@app.post("/api/subscription/checkout")
+def checkout_subscription(
+    req: SubscriptionCheckoutRequest,
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Mock checkout endpoint for subscriptions. Accepts TEST CARDS ONLY.
+    Never persists real or test card numbers to the database.
+    Rate limited and writes to audit log.
+    """
+    import uuid as _uuid
+    from datetime import datetime as _dt, timedelta as _td
+
+    # Rate limit checkouts
+    check_rate_limit(current_admin.id, "checkout", max_requests=10, window_seconds=60)
+
+    # Validate plan existence in database - never trust client blindly
+    target_plan = db.query(Plan).filter(Plan.id == req.plan_id.lower().strip(), Plan.is_active == True).first()
+    if not target_plan:
+        raise HTTPException(status_code=404, detail="Selected subscription plan does not exist")
+
+    cycle = "yearly" if req.billing_cycle == "yearly" else "monthly"
+    now = _dt.utcnow()
+    payment_id = None
+
+    if target_plan.id == "starter":
+        # Free Starter plan
+        status_val = "active"
+        trial_ends_at = None
+        renew_at = None
+        amount = 0.0
+    elif req.is_trial or (target_plan.id == "pro" and req.test_card is None):
+        # 14-day Pro trial
+        status_val = "trial"
+        trial_ends_at = now + _td(days=14)
+        renew_at = trial_ends_at
+        amount = 0.0
+    else:
+        # Paid plan (Growth or Pro)
+        test_card = req.test_card or {}
+        card_num = str(test_card.get("number", "")).replace(" ", "").replace("-", "")
+        if not card_num:
+            raise HTTPException(status_code=400, detail="Test card required for paid plan checkout")
+
+        # Security check: only test cards accepted. NEVER store card numbers!
+        valid_test_prefixes = ("4242", "4000", "4111", "5555", "3782", "1111", "1234", "9999")
+        if len(card_num) < 13 or not any(card_num.startswith(p) for p in valid_test_prefixes):
+            raise HTTPException(status_code=400, detail="Checkout uses test cards only (e.g. 4242 4242 4242 4242)")
+
+        status_val = "active"
+        trial_ends_at = None
+        renew_at = now + (_td(days=365) if cycle == "yearly" else _td(days=30))
+        amount = target_plan.price_yearly if cycle == "yearly" else target_plan.price_monthly
+        payment_id = f"mock_pay_{_uuid.uuid4().hex[:12]}"
+
+    sub = get_or_create_admin_subscription(current_admin, db)
+    sub.plan_id = target_plan.id
+    sub.status = status_val
+    sub.billing_cycle = cycle
+    sub.renew_at = renew_at
+    sub.trial_ends_at = trial_ends_at
+    sub.cancel_at_period_end = False
+    sub.downgrade_plan_id = None
+
+    # Generate mock invoice if paid
+    if amount > 0:
+        inv = Invoice(
+            subscription_id=sub.id,
+            amount=amount,
+            status="PAID",
+            issued_at=now,
+            invoice_no=f"INV-{now.strftime('%Y%m')}-{_uuid.uuid4().hex[:6].upper()}",
+            payment_method="TEST_CARD"
+        )
+        db.add(inv)
+
+    db.commit()
+    db.refresh(sub)
+
+    # Write subscription change and payment attempt to audit log
+    log_audit_event(
+        db=db,
+        actor=f"ADMIN:{current_admin.email}",
+        tool="subscription.checkout",
+        input_payload={
+            "plan_id": target_plan.id,
+            "billing_cycle": cycle,
+            "is_trial": (status_val == "trial"),
+            "amount": amount
+        },
+        output_payload={"status": "SUCCESS", "payment_id": payment_id, "subscription_status": sub.status},
+        verdict="AUTO_APPROVE"
+    )
+
+    return {
+        "success": True,
+        "payment_id": payment_id,
+        "subscription": format_subscription_response(sub, db)
+    }
+
+@app.get("/api/subscription")
+def get_subscription(
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns current admin's subscription, plan, usage, and trial countdown info.
+    """
+    sub = get_or_create_admin_subscription(current_admin, db)
+    return format_subscription_response(sub, db)
+
+@app.post("/api/subscription/change")
+def change_subscription(
+    req: PlanChangeRequest,
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Upgrades immediately; downgrades at period end.
+    """
+    from datetime import datetime as _dt, timedelta as _td
+
+    target_plan = db.query(Plan).filter(Plan.id == req.plan_id.lower().strip(), Plan.is_active == True).first()
+    if not target_plan:
+        raise HTTPException(status_code=404, detail="Selected plan does not exist")
+
+    sub = get_or_create_admin_subscription(current_admin, db)
+    plan_hierarchy = {"starter": 1, "growth": 2, "pro": 3}
+    current_rank = plan_hierarchy.get(sub.plan_id, 1)
+    target_rank = plan_hierarchy.get(target_plan.id, 1)
+
+    now = _dt.utcnow()
+    cycle = "yearly" if req.billing_cycle == "yearly" else "monthly"
+
+    if target_rank >= current_rank:
+        # Immediate upgrade
+        sub.plan_id = target_plan.id
+        sub.status = "active"
+        sub.billing_cycle = cycle
+        sub.renew_at = now + (_td(days=365) if cycle == "yearly" else _td(days=30))
+        sub.cancel_at_period_end = False
+        sub.downgrade_plan_id = None
+        action_type = "UPGRADE_NOW"
+    else:
+        # Downgrade at period end
+        sub.cancel_at_period_end = True
+        sub.downgrade_plan_id = target_plan.id
+        action_type = "DOWNGRADE_AT_PERIOD_END"
+
+    db.commit()
+    db.refresh(sub)
+
+    log_audit_event(
+        db=db,
+        actor=f"ADMIN:{current_admin.email}",
+        tool="subscription.change",
+        input_payload={"target_plan": target_plan.id, "action": action_type},
+        output_payload={"status": "APPLIED", "plan_id": sub.plan_id},
+        verdict="AUTO_APPROVE"
+    )
+
+    return {
+        "success": True,
+        "action": action_type,
+        "subscription": format_subscription_response(sub, db)
+    }
+
+@app.post("/api/subscription/cancel")
+def cancel_subscription(
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Cancels subscription at period end, scheduling downgrade to Starter.
+    """
+    sub = get_or_create_admin_subscription(current_admin, db)
+    sub.cancel_at_period_end = True
+    sub.downgrade_plan_id = "starter"
+    db.commit()
+    db.refresh(sub)
+
+    log_audit_event(
+        db=db,
+        actor=f"ADMIN:{current_admin.email}",
+        tool="subscription.cancel",
+        input_payload={"admin_id": current_admin.id},
+        output_payload={"cancel_at_period_end": True},
+        verdict="AUTO_APPROVE"
+    )
+
+    return {
+        "success": True,
+        "message": "Subscription will cancel at the end of the current billing cycle.",
+        "subscription": format_subscription_response(sub, db)
+    }
+
+@app.get("/api/subscription/invoices")
+def list_subscription_invoices(
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieves invoice history for the current admin's subscription.
+    """
+    sub = get_or_create_admin_subscription(current_admin, db)
+    invoices = db.query(Invoice).filter(Invoice.subscription_id == sub.id).order_by(Invoice.issued_at.desc()).all()
+    return [
+        {
+            "id": inv.id,
+            "invoice_no": inv.invoice_no,
+            "amount": inv.amount,
+            "status": inv.status,
+            "issued_at": inv.issued_at.isoformat() if inv.issued_at else None,
+            "payment_method": inv.payment_method
+        }
+        for inv in invoices
+    ]
 
 @app.get("/api/wallet")
 def get_wallet(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -671,6 +1005,17 @@ async def chat_with_agent(
     import json as _json
     from fastapi.concurrency import run_in_threadpool
 
+    # Count one chat per AI turn; warn at 80%, at 100% hand over to a human politely
+    store_admin = db.query(User).filter(User.role == "ADMIN").first()
+    can_chat, chat_status = record_chat_turn(store_admin, db)
+    if not can_chat:
+        return {
+            "reply_text": "I apologize, but our store has reached its monthly AI chat allocation. To ensure uninterrupted service, this conversation is being safely handed over to our human support team. An agent will be with you shortly!",
+            "action_taken": "HANDOVER_HUMAN",
+            "order_status": None,
+            "wallet_balance": current_user.wallet_balance or 0.0
+        }
+
     # Enforce security: always bound to the authenticated user ID
     # 1H: run_agent_turn is blocking; run in threadpool so scheduler & other requests aren't blocked
     response = await run_in_threadpool(
@@ -683,6 +1028,9 @@ async def chat_with_agent(
         evidence_photos=req.evidencePhotos,
         source=req.source or "text"
     )
+
+    if chat_status.startswith("Warning:"):
+        response["plan_warning"] = chat_status
 
     db.refresh(current_user)
     response["wallet_balance"] = current_user.wallet_balance or 0.0
@@ -889,6 +1237,11 @@ def get_escalations(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
+    if not has_feature(admin, "escalation_queue", db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Escalation queue requires a Growth or Pro plan. Please upgrade to unlock."
+        )
     query = db.query(Escalation).order_by(Escalation.created_at.desc())
     if status_filter and status_filter.upper() != "ALL":
         query = query.filter(Escalation.status == status_filter.upper())
@@ -1017,6 +1370,11 @@ def export_audit_logs_csv(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
+    if not has_feature(admin, "csv_export", db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSV export requires a Growth or Pro plan. Please upgrade to unlock."
+        )
     logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).all()
     headers = ["ID", "Timestamp", "Actor", "Tool", "Verdict", "Status", "Order_ID", "Customer_ID", "Idempotency_Key"]
     rows = [
@@ -1232,6 +1590,12 @@ def schedule_support_call(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    admin_user = db.query(User).filter(User.role == "ADMIN").first()
+    if admin_user and not has_feature(admin_user, "voice_assistant", db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Voice assistant support calls require a Pro plan. Please upgrade to unlock."
+        )
     phone = req.phone or current_user.phone or "+91 98450 12891"
     order = None
     if req.order_id:

@@ -24,7 +24,10 @@ import {
   ExternalLink,
   ChevronRight,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  Sparkles,
+  CreditCard
 } from 'lucide-react';
 import {
   AreaChart,
@@ -44,7 +47,10 @@ import {
   AuditLogItem,
   Product,
   SettingItem,
-  TrackingEventItem
+  TrackingEventItem,
+  SubscriptionData,
+  PlanItem,
+  InvoiceItem
 } from '../../types';
 import { authService } from '../../api/authService';
 import { getApiBaseUrl } from '../../api/config';
@@ -115,6 +121,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const [shipmentDesc, setShipmentDesc] = useState('Items verified, barcoded, and sealed with tamper-proof security tape.');
   const [notifyCustomer, setNotifyCustomer] = useState(true);
   const [isUpdatingShipment, setIsUpdatingShipment] = useState(false);
+
+  // Subscription & Plan States
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [availablePlans, setAvailablePlans] = useState<PlanItem[]>([]);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [modalBillingCycle, setModalBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+
+  const hasFeature = (key: string): boolean => {
+    if (!subscription) return true; // optimistic default
+    return subscription.feature_keys?.includes(key) ?? false;
+  };
 
   const STAGE_PRESETS: Record<string, { title: string; location: string; description: string }> = {
     PLACED: {
@@ -225,6 +244,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     }
   };
 
+  const fetchSubscription = async () => {
+    try {
+      const res = await authService.authFetch('/api/subscription');
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data);
+      }
+    } catch (e) {
+      console.error('Failed to load subscription', e);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/plans`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailablePlans(data);
+      }
+    } catch (e) {
+      console.error('Failed to load plans', e);
+    }
+  };
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await authService.authFetch('/api/subscription/invoices');
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data);
+      }
+    } catch (e) {
+      console.error('Failed to load invoices', e);
+    }
+  };
+
+  const handleChangePlan = async (planId: string) => {
+    setIsChangingPlan(true);
+    try {
+      const res = await authService.authFetch('/api/subscription/change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan_id: planId,
+          billing_cycle: modalBillingCycle
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.subscription);
+        toast.show(`Subscription updated to ${planId.toUpperCase()}!`, 'success');
+        fetchSubscription();
+        fetchInvoices();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.show(err.detail || 'Failed to update plan', 'error');
+      }
+    } catch {
+      toast.show('Network error while updating subscription', 'error');
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your plan at the end of the billing cycle?')) return;
+    try {
+      const res = await authService.authFetch('/api/subscription/cancel', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.subscription);
+        toast.show('Subscription cancelled at period end.', 'info');
+      }
+    } catch {
+      toast.show('Failed to cancel subscription', 'error');
+    }
+  };
+
   // Initial load
   useEffect(() => {
     fetchOverview();
@@ -232,6 +332,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     fetchEscalations();
     fetchProducts();
     fetchSettings();
+    fetchSubscription();
+    fetchPlans();
+    fetchInvoices();
   }, []);
 
   // Poll orders & dashboard periodically for automatic tracking updates
@@ -412,6 +515,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
   // Export CSV
   const handleExportCSV = () => {
+    if (!hasFeature('csv_export')) {
+      setIsUpgradeModalOpen(true);
+      toast.show('CSV export is locked on Starter. Upgrade to Growth or Pro.', 'warning');
+      return;
+    }
     const token = authService.getToken();
     const apiBase = getApiBaseUrl();
     window.open(`${apiBase}/api/admin/audit-logs/export-csv?token=${token}`, '_blank');
@@ -450,6 +558,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
             <span className="text-xs px-2 py-0.5 rounded bg-surface-2 border border-border text-primary font-mono font-bold">
               ADMIN MODE
             </span>
+            <button
+              type="button"
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[#0B7A5A] dark:text-[#3DD6A0] font-bold border border-emerald-300 dark:border-emerald-800 hover:scale-105 transition-all flex items-center gap-1.5 ml-1"
+            >
+              <span>Plan: {subscription?.plan_name || 'Pro'}</span>
+              {subscription?.is_trial && (
+                <span className="text-[10px] bg-[#0B7A5A] text-white px-1.5 py-0.2 rounded-full">
+                  Trial
+                </span>
+              )}
+              <Sparkles className="w-3 h-3" />
+            </button>
           </div>
           <p className="text-xs text-text-muted mt-1">
             Real-time sales monitoring, automatic order lifecycle engine, AI escalations & policy guardrails
@@ -484,9 +605,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
               activeTab === 'escalations' ? 'bg-primary text-black shadow-sm' : 'text-text-muted hover:text-text-main'
             }`}
           >
-            <AlertCircle className="w-3.5 h-3.5" />
+            {!hasFeature('escalation_queue') ? (
+              <Lock className="w-3.5 h-3.5 text-warning" />
+            ) : (
+              <AlertCircle className="w-3.5 h-3.5" />
+            )}
             <span>Escalations</span>
-            {dashboardData?.kpis.openEscalations ? (
+            {!hasFeature('escalation_queue') ? (
+              <span className="text-[10px] px-1 py-0.2 rounded bg-warning/20 text-warning font-extrabold">Pro</span>
+            ) : dashboardData?.kpis.openEscalations ? (
               <span className="w-2 h-2 rounded-full bg-danger animate-ping ml-0.5" />
             ) : null}
           </button>
@@ -522,6 +649,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
           </button>
         </div>
       </div>
+
+      {/* Trial Countdown Banner */}
+      {subscription?.status === 'trial' && (
+        <div className="w-full p-4 rounded-2xl bg-gradient-to-r from-[#0B7A5A] to-emerald-700 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg shrink-0">
+              ⏳
+            </div>
+            <div>
+              <span className="font-extrabold text-sm block">
+                Pro Free Trial: {subscription.trial_days_left} {subscription.trial_days_left === 1 ? 'day' : 'days'} remaining
+              </span>
+              <span className="text-xs text-white/90">
+                Enjoying unlimited AI chats, multimodal defect inspection & priority support. Upgrade anytime to keep Pro features.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="px-4 py-2 rounded-xl bg-white text-[#0B7A5A] font-extrabold text-xs hover:bg-emerald-50 active:scale-95 transition-all shadow-xs shrink-0 self-start sm:self-auto"
+          >
+            Upgrade Plan
+          </button>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* TAB 1: OVERVIEW & SALES */}
@@ -770,6 +923,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
       {/* TAB 3: ESCALATIONS & APPROVAL QUEUE */}
       {/* ========================================================================= */}
       {activeTab === 'escalations' && (
+        !hasFeature('escalation_queue') ? (
+          <div className="py-16 text-center bg-surface border border-border rounded-3xl p-8 max-w-xl mx-auto space-y-4 my-8 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-warning/15 text-warning mx-auto flex items-center justify-center">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-text-main">Escalation Queue is Locked on Starter</h3>
+            <p className="text-xs text-text-muted leading-relaxed">
+              Human-in-the-loop triage, manual exception overrides, and fraud reviews are available on Growth and Pro plans. Upgrade your subscription to unlock the complete escalation command center.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-primary text-black font-extrabold text-xs shadow-md hover:bg-primary-hover active:scale-95 transition-all inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Upgrade to Growth</span>
+            </button>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-surface p-4 rounded-2xl border border-border">
             <div>
@@ -959,6 +1131,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
             )}
           </div>
         </div>
+        )
       )}
 
       {/* ========================================================================= */}
@@ -997,10 +1170,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
               <button
                 onClick={handleExportCSV}
-                className="px-3 py-1.5 rounded-xl bg-primary text-black font-bold text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity"
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all ${
+                  hasFeature('csv_export')
+                    ? 'bg-primary text-black hover:opacity-90'
+                    : 'bg-surface-2 text-text-muted border border-border hover:border-primary'
+                }`}
               >
-                <Download className="w-3.5 h-3.5" />
+                {hasFeature('csv_export') ? (
+                  <Download className="w-3.5 h-3.5" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-warning" />
+                )}
                 <span>Export CSV</span>
+                {!hasFeature('csv_export') && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-warning/20 text-warning font-extrabold ml-0.5">Growth</span>
+                )}
               </button>
             </div>
           </div>
@@ -1643,6 +1827,186 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                   <span>Approve Claim</span>
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: SUBSCRIPTION & UPGRADE MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isUpgradeModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-modal-title"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface border border-border rounded-3xl w-full max-w-3xl p-6 sm:p-8 shadow-2xl relative my-8"
+            >
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="absolute top-5 right-5 p-2 rounded-xl text-text-muted hover:text-text-main border border-border"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="mb-6">
+                <span className="text-xs font-mono font-bold text-primary flex items-center gap-1.5 uppercase">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Subscription Management</span>
+                </span>
+                <h3 id="plan-modal-title" className="text-xl font-black text-text-main mt-1">
+                  Manage Plan & Billing
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Current Plan: <span className="font-bold text-text-main">{subscription?.plan_name || 'Pro'}</span>
+                  {subscription?.status === 'trial' && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-bold text-[10px]">
+                      Trial ({subscription.trial_days_left}d left)
+                    </span>
+                  )}
+                  {subscription?.cancel_at_period_end && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-warning/20 text-warning font-bold text-[10px]">
+                      Cancels at period end
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Billing frequency toggle */}
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex rounded-full bg-surface-2 p-1 border border-border text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setModalBillingCycle('monthly')}
+                    className={`px-4 py-1.5 rounded-full transition-all ${
+                      modalBillingCycle === 'monthly' ? 'bg-primary text-black shadow-xs' : 'text-text-muted'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalBillingCycle('yearly')}
+                    className={`px-4 py-1.5 rounded-full transition-all flex items-center gap-1 ${
+                      modalBillingCycle === 'yearly' ? 'bg-primary text-black shadow-xs' : 'text-text-muted'
+                    }`}
+                  >
+                    <span>Yearly</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/20">
+                      2 mo free
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Plans Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {availablePlans.map(p => {
+                  const isCurrent = subscription?.plan_id === p.id;
+                  const price = modalBillingCycle === 'yearly' ? p.price_yearly : p.price_monthly;
+                  return (
+                    <div
+                      key={p.id}
+                      className={`p-4 rounded-2xl border flex flex-col justify-between ${
+                        isCurrent
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border bg-surface-2/40'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-black text-sm text-text-main">{p.name}</h4>
+                          {isCurrent && (
+                            <span className="text-[10px] bg-primary text-black font-extrabold px-2 py-0.5 rounded-full">
+                              Current
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xl font-black text-text-main my-2">
+                          {price === 0 ? '₹0' : `₹${price.toLocaleString('en-IN')}`}
+                          <span className="text-xs font-normal text-text-muted ml-1">
+                            /{modalBillingCycle === 'yearly' ? 'yr' : 'mo'}
+                          </span>
+                        </div>
+                        <ul className="text-[11px] space-y-1.5 text-text-muted my-3">
+                          {p.features.map((f, i) => (
+                            <li key={i} className="flex items-center gap-1.5">
+                              <Check className="w-3 h-3 text-primary shrink-0" />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isCurrent || isChangingPlan}
+                        onClick={() => handleChangePlan(p.id)}
+                        className={`w-full py-2 rounded-xl text-xs font-bold transition-all mt-3 ${
+                          isCurrent
+                            ? 'bg-surface-2 text-text-muted cursor-default'
+                            : 'bg-primary text-black hover:opacity-90 active:scale-95 shadow-sm'
+                        }`}
+                      >
+                        {isCurrent ? 'Active Plan' : isChangingPlan ? 'Updating...' : `Switch to ${p.name}`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Invoices History section */}
+              {invoices.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-border">
+                  <h4 className="text-xs font-mono font-bold text-text-main mb-3 uppercase">
+                    Recent Invoices (Mock Test Billing)
+                  </h4>
+                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                    {invoices.map(inv => (
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-surface-2 text-xs border border-border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-3.5 h-3.5 text-primary" />
+                          <span className="font-mono font-bold text-text-main">{inv.invoice_no}</span>
+                          <span className="text-[11px] text-text-muted">
+                            {new Date(inv.issued_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-text-main">₹{inv.amount.toLocaleString('en-IN')}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-extrabold">
+                            {inv.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cancel Subscription link */}
+              {subscription?.plan_id !== 'starter' && !subscription?.cancel_at_period_end && (
+                <div className="mt-5 pt-4 border-t border-border flex items-center justify-between text-xs text-text-muted">
+                  <span>Want to cancel automatic renewal?</span>
+                  <button
+                    type="button"
+                    onClick={handleCancelSubscription}
+                    className="text-danger hover:underline font-bold"
+                  >
+                    Cancel Subscription
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

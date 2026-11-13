@@ -18,6 +18,7 @@ add_col('users', 'latitude', 'REAL')
 add_col('users', 'longitude', 'REAL')
 add_col('users', 'trust_score', 'REAL DEFAULT 75.0')
 add_col('users', 'trust_tier', 'TEXT DEFAULT "NORMAL"')
+add_col('users', 'store_name', 'TEXT')
 
 # Products columns
 add_col('products', 'is_active', 'BOOLEAN DEFAULT 1')

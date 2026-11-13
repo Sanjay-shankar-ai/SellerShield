@@ -4,6 +4,7 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string;
+  store_name?: string;
   phone?: string;
   role: Role;
   wallet_balance?: number;
@@ -291,4 +292,46 @@ export interface PromoValidationResult {
   discount_type?: 'FLAT' | 'PERCENT';
   percent?: number;
   message: string;
+}
+
+export interface PlanItem {
+  id: string;
+  name: string;
+  price_monthly: number;
+  price_yearly: number;
+  chat_limit: number;
+  features: string[];
+  feature_keys: string[];
+}
+
+export interface SubscriptionData {
+  id: string;
+  admin_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired';
+  billing_cycle: 'monthly' | 'yearly';
+  price_monthly: number;
+  price_yearly: number;
+  chat_limit: number;
+  chats_used: number;
+  started_at: string;
+  renew_at?: string;
+  trial_ends_at?: string;
+  trial_days_left: number;
+  is_trial: boolean;
+  cancel_at_period_end: boolean;
+  downgrade_plan_id?: string;
+  features: string[];
+  feature_keys: string[];
+  invoices_count: number;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_no: string;
+  amount: number;
+  status: string;
+  issued_at: string;
+  payment_method: string;
 }
