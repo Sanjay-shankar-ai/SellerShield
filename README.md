@@ -1,4 +1,4 @@
-# SellerShield: Master System Documentation & Judge Presentation Guide
+# SellerShield:
 
 > **Autonomous Post-Purchase Action Engine for Modern E-Commerce**  
 > *Transforming customer returns, exchanges, and support from a $800B loss center into an automated retention and revenue machine using stateful LangGraph multi-agent workflows.*
