@@ -296,7 +296,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           {/* Right header: Seller admin portal + Dark theme toggle */}
           <div className="flex items-center gap-3 sm:gap-4">
             <span className="text-xs sm:text-sm font-semibold text-[#4A5868] dark:text-[#A9B6C4] hidden xs:inline-block">
-              Seller admin portal
+              {role === 'ADMIN' ? 'Seller admin portal' : 'Customer portal'}
             </span>
 
             {/* Dark Theme Toggle Button */}
@@ -336,7 +336,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   Welcome back
                 </h1>
                 <p className="text-sm text-[#4A5868] dark:text-[#A9B6C4] mt-1">
-                  Sign in to manage your autonomous AI store operations.
+                  {role === 'ADMIN'
+                    ? 'Sign in to manage your autonomous AI store operations.'
+                    : 'Sign in to track orders, request instant exchanges, or speak with AI support.'}
                 </p>
               </div>
 
@@ -480,203 +482,300 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </button>
               </form>
 
-              {/* Bottom Notice: "New seller? Create account and get a 14-day Pro trial." */}
+              {/* Bottom Notice: Only show Pro trial & seller onboarding to Admin */}
               <div className="mt-6 pt-5 border-t border-[#D5DCE5] dark:border-[#2A3644] text-center text-xs text-[#4A5868] dark:text-[#A9B6C4]">
-                New seller?{' '}
-                <button
-                  type="button"
-                  onClick={() => handleChoosePlan('pro', true)}
-                  className="font-bold text-[#0B7A5A] dark:text-[#3DD6A0] hover:underline focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden rounded-xs"
-                >
-                  Create account
-                </button>{' '}
-                and get a 14-day Pro trial.
+                {role === 'ADMIN' ? (
+                  <>
+                    New seller?{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleChoosePlan('pro', true)}
+                      className="font-bold text-[#0B7A5A] dark:text-[#3DD6A0] hover:underline focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden rounded-xs"
+                    >
+                      Create account
+                    </button>{' '}
+                    and get a 14-day Pro trial.
+                  </>
+                ) : (
+                  <>
+                    Are you a store merchant?{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectRole('ADMIN')}
+                      className="font-bold text-[#0B7A5A] dark:text-[#3DD6A0] hover:underline focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden rounded-xs"
+                    >
+                      Switch to Seller Admin
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          {/* ══ RIGHT COLUMN: SUBSCRIPTION PLANS (Cards wrap, responsive) ══ */}
+          {/* ══ RIGHT COLUMN: SUBSCRIPTION PLANS SHOWN TO ADMIN ONLY ══ */}
           <div className="w-full lg:col-span-7 xl:col-span-8">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-extrabold text-[#0F1720] dark:text-white tracking-tight">
-                  Choose your plan
-                </h2>
-                <p className="text-xs sm:text-sm text-[#4A5868] dark:text-[#A9B6C4] mt-0.5">
-                  Flexible plans designed to scale with your e-commerce order volume.
-                </p>
-              </div>
+            {role === 'ADMIN' ? (
+              <>
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-[#0F1720] dark:text-white tracking-tight">
+                      Choose your plan
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#4A5868] dark:text-[#A9B6C4] mt-0.5">
+                      Flexible plans designed to scale with your e-commerce order volume.
+                    </p>
+                  </div>
 
-              {/* Pill Toggle: [Monthly | Yearly, 2 months free] (role="switch", accessible keyboard navigation) */}
-              <div
-                role="radiogroup"
-                aria-label="Billing frequency"
-                className="inline-flex items-center rounded-full bg-white dark:bg-[#131A22] border border-[#D5DCE5] dark:border-[#2A3644] p-1 shadow-xs self-start sm:self-auto"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={billingCycle === 'monthly'}
-                  tabIndex={0}
-                  onClick={() => setBillingCycle('monthly')}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setBillingCycle('yearly');
-                  }}
-                  className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    billingCycle === 'monthly'
-                      ? 'bg-[#0B7A5A] text-white shadow-xs'
-                      : 'text-[#4A5868] dark:text-[#A9B6C4] hover:text-[#0F1720] dark:hover:text-white'
-                  }`}
-                >
-                  {billingCycle === 'monthly' && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
-                  <span>Monthly</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={billingCycle === 'yearly'}
-                  tabIndex={0}
-                  onClick={() => setBillingCycle('yearly')}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setBillingCycle('monthly');
-                  }}
-                  className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    billingCycle === 'yearly'
-                      ? 'bg-[#0B7A5A] text-white shadow-xs'
-                      : 'text-[#4A5868] dark:text-[#A9B6C4] hover:text-[#0F1720] dark:hover:text-white'
-                  }`}
-                >
-                  {billingCycle === 'yearly' && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
-                  <span>Yearly</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider font-extrabold ${
-                    billingCycle === 'yearly'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-emerald-100 text-[#0B7A5A] dark:bg-emerald-950 dark:text-[#3DD6A0]'
-                  }`}>
-                    2 months free
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3 Plan Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {plans.map(p => {
-                const isGrowth = p.id === 'growth';
-                const isPro = p.id === 'pro';
-                const isStarter = p.id === 'starter';
-
-                // Price display: yearly = monthly x 10
-                const priceDisplay =
-                  billingCycle === 'yearly'
-                    ? (p.price_yearly === 0 ? '₹0' : `₹${p.price_yearly.toLocaleString('en-IN')}`)
-                    : (p.price_monthly === 0 ? '₹0' : `₹${p.price_monthly.toLocaleString('en-IN')}`);
-
-                const periodText = billingCycle === 'yearly' ? '/year' : '/month';
-
-                return (
+                  {/* Pill Toggle: [Monthly | Yearly, 2 months free] */}
                   <div
-                    key={p.id}
-                    className={`bg-white dark:bg-[#131A22] rounded-[16px] p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 shadow-sm relative ${
-                      isGrowth
-                        ? 'border-2 border-[#0B7A5A] dark:border-[#3DD6A0] shadow-md ring-1 ring-[#0B7A5A]/20'
-                        : 'border border-[#D5DCE5] dark:border-[#2A3644]'
-                    }`}
+                    role="radiogroup"
+                    aria-label="Billing frequency"
+                    className="inline-flex items-center rounded-full bg-white dark:bg-[#131A22] border border-[#D5DCE5] dark:border-[#2A3644] p-1 shadow-xs self-start sm:self-auto"
                   >
-                    {/* "Most popular" badge for Growth */}
-                    {isGrowth && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0B7A5A] text-white text-[11px] font-extrabold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" aria-hidden="true" />
-                        <span>Most popular</span>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={billingCycle === 'monthly'}
+                      tabIndex={0}
+                      onClick={() => setBillingCycle('monthly')}
+                      onKeyDown={e => {
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setBillingCycle('yearly');
+                      }}
+                      className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        billingCycle === 'monthly'
+                          ? 'bg-[#0B7A5A] text-white shadow-xs'
+                          : 'text-[#4A5868] dark:text-[#A9B6C4] hover:text-[#0F1720] dark:hover:text-white'
+                      }`}
+                    >
+                      {billingCycle === 'monthly' && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+                      <span>Monthly</span>
+                    </button>
 
-                    <div>
-                      {/* Plan Title & Limits */}
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-extrabold text-lg text-[#0F1720] dark:text-white">
-                          {p.name}
-                        </h3>
-                        {isPro && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                            Enterprise AI
-                          </span>
-                        )}
-                      </div>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={billingCycle === 'yearly'}
+                      tabIndex={0}
+                      onClick={() => setBillingCycle('yearly')}
+                      onKeyDown={e => {
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setBillingCycle('monthly');
+                      }}
+                      className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        billingCycle === 'yearly'
+                          ? 'bg-[#0B7A5A] text-white shadow-xs'
+                          : 'text-[#4A5868] dark:text-[#A9B6C4] hover:text-[#0F1720] dark:hover:text-white'
+                      }`}
+                    >
+                      {billingCycle === 'yearly' && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+                      <span>Yearly</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider font-extrabold ${
+                        billingCycle === 'yearly'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-emerald-100 text-[#0B7A5A] dark:bg-emerald-950 dark:text-[#3DD6A0]'
+                      }`}>
+                        2 months free
+                      </span>
+                    </button>
+                  </div>
+                </div>
 
-                      {/* Price Section */}
-                      <div className="my-3">
-                        <span className="text-3xl font-black text-[#0F1720] dark:text-white">
-                          {priceDisplay}
-                        </span>
-                        <span className="text-xs font-semibold text-[#4A5868] dark:text-[#A9B6C4] ml-1">
-                          {periodText}
-                        </span>
-                        {billingCycle === 'yearly' && p.price_monthly > 0 && (
-                          <div className="text-[11px] text-[#0B7A5A] dark:text-[#3DD6A0] font-bold mt-0.5">
-                            Save ₹{(p.price_monthly * 2).toLocaleString('en-IN')} (2 months free)
+                {/* 3 Plan Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {plans.map(p => {
+                    const isGrowth = p.id === 'growth';
+                    const isPro = p.id === 'pro';
+                    const isStarter = p.id === 'starter';
+
+                    const priceDisplay =
+                      billingCycle === 'yearly'
+                        ? (p.price_yearly === 0 ? '₹0' : `₹${p.price_yearly.toLocaleString('en-IN')}`)
+                        : (p.price_monthly === 0 ? '₹0' : `₹${p.price_monthly.toLocaleString('en-IN')}`);
+
+                    const periodText = billingCycle === 'yearly' ? '/year' : '/month';
+
+                    return (
+                      <div
+                        key={p.id}
+                        className={`bg-white dark:bg-[#131A22] rounded-[16px] p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 shadow-sm relative ${
+                          isGrowth
+                            ? 'border-2 border-[#0B7A5A] dark:border-[#3DD6A0] shadow-md ring-1 ring-[#0B7A5A]/20'
+                            : 'border border-[#D5DCE5] dark:border-[#2A3644]'
+                        }`}
+                      >
+                        {isGrowth && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0B7A5A] text-white text-[11px] font-extrabold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" aria-hidden="true" />
+                            <span>Most popular</span>
                           </div>
                         )}
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-extrabold text-lg text-[#0F1720] dark:text-white">
+                              {p.name}
+                            </h3>
+                            {isPro && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                Enterprise AI
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="my-3">
+                            <span className="text-3xl font-black text-[#0F1720] dark:text-white">
+                              {priceDisplay}
+                            </span>
+                            <span className="text-xs font-semibold text-[#4A5868] dark:text-[#A9B6C4] ml-1">
+                              {periodText}
+                            </span>
+                            {billingCycle === 'yearly' && p.price_monthly > 0 && (
+                              <div className="text-[11px] text-[#0B7A5A] dark:text-[#3DD6A0] font-bold mt-0.5">
+                                Save ₹{(p.price_monthly * 2).toLocaleString('en-IN')} (2 months free)
+                              </div>
+                            )}
+                          </div>
+
+                          <ul className="space-y-2.5 my-5 text-xs text-[#0F1720] dark:text-[#F2F6FA]">
+                            {p.features.map((feature, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <CheckCircle2
+                                  className={`w-4 h-4 shrink-0 mt-0.5 ${
+                                    isGrowth || isPro ? 'text-[#0B7A5A] dark:text-[#3DD6A0]' : 'text-[#4A5868] dark:text-[#A9B6C4]'
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                <span className="leading-tight">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="pt-4 border-t border-[#D5DCE5]/60 dark:border-[#2A3644]/60">
+                          {isStarter && (
+                            <button
+                              type="button"
+                              onClick={() => handleChoosePlan('starter', false)}
+                              className="w-full py-2.5 rounded-[10px] border border-[#0B7A5A] text-[#0B7A5A] dark:text-[#3DD6A0] dark:border-[#3DD6A0] font-bold text-xs hover:bg-[#0B7A5A]/10 active:scale-[0.99] transition-all focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
+                            >
+                              Start free
+                            </button>
+                          )}
+
+                          {isGrowth && (
+                            <button
+                              type="button"
+                              onClick={() => handleChoosePlan('growth', false)}
+                              className="w-full py-2.5 rounded-[10px] bg-[#0B7A5A] text-white font-bold text-xs hover:bg-[#085f46] active:scale-[0.99] transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
+                            >
+                              Choose Growth
+                            </button>
+                          )}
+
+                          {isPro && (
+                            <button
+                              type="button"
+                              onClick={() => handleChoosePlan('pro', true)}
+                              className="w-full py-2.5 rounded-[10px] border-2 border-[#0B7A5A] text-[#0B7A5A] dark:text-[#3DD6A0] dark:border-[#3DD6A0] font-bold text-xs hover:bg-[#0B7A5A]/10 active:scale-[0.99] transition-all focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
+                            >
+                              Try Pro free for 14 days
+                            </button>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* Feature Bullet List */}
-                      <ul className="space-y-2.5 my-5 text-xs text-[#0F1720] dark:text-[#F2F6FA]">
-                        {p.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <CheckCircle2
-                              className={`w-4 h-4 shrink-0 mt-0.5 ${
-                                isGrowth || isPro ? 'text-[#0B7A5A] dark:text-[#3DD6A0]' : 'text-[#4A5868] dark:text-[#A9B6C4]'
-                              }`}
-                              aria-hidden="true"
-                            />
-                            <span className="leading-tight">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
+                <p className="mt-5 text-center text-xs text-[#4A5868] dark:text-[#A9B6C4]">
+                  Sample prices. Checkout uses a test card only, so no real payment is taken.
+                </p>
+              </>
+            ) : (
+              /* ══ CUSTOMER EXPERIENCE PANEL (ZERO SUBSCRIPTIONS/PLANS SHOWN) ══ */
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#0F1720] dark:text-white tracking-tight">
+                    Customer Support & Concierge
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5868] dark:text-[#A9B6C4] mt-0.5">
+                    Experience seamless post-purchase protection powered by 24/7 autonomous support.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="bg-white dark:bg-[#131A22] rounded-[16px] border border-[#D5DCE5] dark:border-[#2A3644] p-5 shadow-sm space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                      📦
                     </div>
-
-                    {/* Action Button */}
-                    <div className="pt-4 border-t border-[#D5DCE5]/60 dark:border-[#2A3644]/60">
-                      {isStarter && (
-                        <button
-                          type="button"
-                          onClick={() => handleChoosePlan('starter', false)}
-                          className="w-full py-2.5 rounded-[10px] border border-[#0B7A5A] text-[#0B7A5A] dark:text-[#3DD6A0] dark:border-[#3DD6A0] font-bold text-xs hover:bg-[#0B7A5A]/10 active:scale-[0.99] transition-all focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
-                        >
-                          Start free
-                        </button>
-                      )}
-
-                      {isGrowth && (
-                        <button
-                          type="button"
-                          onClick={() => handleChoosePlan('growth', false)}
-                          className="w-full py-2.5 rounded-[10px] bg-[#0B7A5A] text-white font-bold text-xs hover:bg-[#085f46] active:scale-[0.99] transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
-                        >
-                          Choose Growth
-                        </button>
-                      )}
-
-                      {isPro && (
-                        <button
-                          type="button"
-                          onClick={() => handleChoosePlan('pro', true)}
-                          className="w-full py-2.5 rounded-[10px] border-2 border-[#0B7A5A] text-[#0B7A5A] dark:text-[#3DD6A0] dark:border-[#3DD6A0] font-bold text-xs hover:bg-[#0B7A5A]/10 active:scale-[0.99] transition-all focus-visible:ring-2 focus-visible:ring-[#0B7A5A] focus:outline-hidden"
-                        >
-                          Try Pro free for 14 days
-                        </button>
-                      )}
-                    </div>
+                    <h3 className="font-extrabold text-sm text-[#0F1720] dark:text-white">
+                      Live Order Tracking
+                    </h3>
+                    <p className="text-xs text-[#4A5868] dark:text-[#A9B6C4] leading-relaxed">
+                      Instant courier event updates, live delivery status, and proactive weather delay notifications.
+                    </p>
+                    <ul className="text-[11px] space-y-1.5 text-text-muted pt-2 border-t border-[#D5DCE5]/60 dark:border-[#2A3644]/60">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Real-time milestone tracking</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Estimated doorstep ETA</span>
+                      </li>
+                    </ul>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Footnote */}
-            <p className="mt-5 text-center text-xs text-[#4A5868] dark:text-[#A9B6C4]">
-              Sample prices. Checkout uses a test card only, so no real payment is taken.
-            </p>
+                  <div className="bg-white dark:bg-[#131A22] rounded-[16px] border border-[#D5DCE5] dark:border-[#2A3644] p-5 shadow-sm space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0B7A5A]/10 text-[#0B7A5A] dark:text-[#3DD6A0] flex items-center justify-center font-bold text-lg">
+                      🔄
+                    </div>
+                    <h3 className="font-extrabold text-sm text-[#0F1720] dark:text-white">
+                      1-Click Size & Color Swaps
+                    </h3>
+                    <p className="text-xs text-[#4A5868] dark:text-[#A9B6C4] leading-relaxed">
+                      Item didn't fit? Instantly swap size or color with automated return shipping QR code generation.
+                    </p>
+                    <ul className="text-[11px] space-y-1.5 text-text-muted pt-2 border-t border-[#D5DCE5]/60 dark:border-[#2A3644]/60">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Instant variant exchange</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Pre-paid return shipping labels</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-white dark:bg-[#131A22] rounded-[16px] border border-[#D5DCE5] dark:border-[#2A3644] p-5 shadow-sm space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg">
+                      💰
+                    </div>
+                    <h3 className="font-extrabold text-sm text-[#0F1720] dark:text-white">
+                      +10% Bonus Store Wallet
+                    </h3>
+                    <p className="text-xs text-[#4A5868] dark:text-[#A9B6C4] leading-relaxed">
+                      Choose store wallet refunds and get an extra +10% cash bonus credited instantly to your balance.
+                    </p>
+                    <ul className="text-[11px] space-y-1.5 text-text-muted pt-2 border-t border-[#D5DCE5]/60 dark:border-[#2A3644]/60">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Zero bank processing delay</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-[#0B7A5A] dark:text-[#3DD6A0]" />
+                        <span>Extra 10% purchasing power</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-[14px] bg-[#F6F8FB] dark:bg-[#1B2430] border border-[#D5DCE5] dark:border-[#2A3644] text-xs text-[#4A5868] dark:text-[#A9B6C4] flex items-center justify-between">
+                  <span>Sign in above with your order email to view your order history or chat with the AI assistant.</span>
+                  <span className="font-mono text-[11px] text-[#0B7A5A] dark:text-[#3DD6A0] font-bold">24/7 Live Concierge</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
