@@ -18,7 +18,9 @@ sellershield_checkpoints.db-wal
 *.pptx
 ~$*
 generate_presentation.py
+generate_pitch_deck.py
 generate_diagram_image.py
+view_and_download_diagram.html
 langgraph_architecture.png
 langgraph_architecture.svg
 test_*.py
