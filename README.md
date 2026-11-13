@@ -373,7 +373,7 @@ Consider an apparel brand doing **1,500 orders per month** with an average order
 
 ---
 
-## 7. Judge Q&A & Technical Defense Guide
+## 7.Technical Defense
 
 When presenting to judges, be prepared with these concise, highly technical answers to common questions:
 
