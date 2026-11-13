@@ -295,7 +295,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
           {/* Right header: Seller admin portal + Dark theme toggle */}
           <div className="flex items-center gap-3 sm:gap-4">
-            <span className="text-xs sm:text-sm font-semibold text-[#4A5868] dark:text-[#A9B6C4] hidden xs:inline-block">
+            <span className="text-xs sm:text-sm font-semibold text-[#4A5868] dark:text-[#A9B6C4]">
               {role === 'ADMIN' ? 'Seller admin portal' : 'Customer portal'}
             </span>
 
